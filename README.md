@@ -5,6 +5,7 @@ Made using custom .pyw program.
 
 
 ### Yomitan Dictionary Creation Guide
+<img width="1294" height="976" alt="image" src="https://github.com/user-attachments/assets/0cadd9e8-b01a-413e-b001-7c52dd4804ea" />
 
 This guide will walk you through the process of creating a custom dictionary for Yomitan using the above script.
 
