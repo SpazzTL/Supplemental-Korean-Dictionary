@@ -10,7 +10,7 @@ import zipfile
 OUTPUT_DIRECTORY = "handzip"
 # The main file dictionary words will go into.
 OUTPUT_FILENAME = "term_bank_1.json"
-# What to do if the file already exists. 
+# What to do if the file already exists.
 EXISTING_FILE_ACTION = "Append"  # Options: "Overwrite", "Append", "Rename"
 ZIP_SOURCE_DIRECTORY = "handzip"  # Directory to zip
 ZIP_OUTPUT_DIRECTORY = ""  # Directory where the zip file will be saved. Leave empty for script directory.
@@ -26,6 +26,150 @@ dictionary_data = []
 # Global variable for the definitions structured content
 current_definitions = None
 
+# --- Helper function and placeholders for Template Mode ---
+# This set contains all the placeholder strings from the template.
+# If a structured element's content exactly matches one of these, it will be removed.
+PLACEHOLDER_STRINGS = {
+    "TERM_TEXT",
+    "〔ALTERNATE_FORM〕",
+    "PART_OF_SPEECH",
+    "1. Primary Definition",
+    "A more detailed explanation of this meaning.",
+    "Etymology: Origin or component breakdown.",
+    "First example sentence.",
+    "2. Secondary Definition (if any)",
+    "A more detailed explanation of this second meaning.",
+    "Example sentence for this meaning."
+}
+def clean_placeholders(node):
+    """
+    Recursively traverses structured content and removes any elements
+    that still contain placeholder text.
+    """
+    if isinstance(node, str):
+        # If the text is a placeholder, return None to signal its removal.
+        return None if node in PLACEHOLDER_STRINGS else node
+
+    if isinstance(node, list):
+        # For a list, clean each item and create a new list with the non-empty results.
+        cleaned_list = [item for item in (clean_placeholders(i) for i in node) if item is not None]
+        # If the list is now empty, signal its removal.
+        return cleaned_list if cleaned_list else None
+
+    if isinstance(node, dict) and 'tag' in node:
+        # For a tag object (like a div or span), clean its 'content'.
+        if 'content' in node:
+            cleaned_content = clean_placeholders(node.get('content'))
+            if cleaned_content is None:
+                # If the content was entirely placeholders and got removed, remove the tag itself.
+                return None
+            node['content'] = cleaned_content
+        return node
+    
+    # Return any other data type (like style objects) untouched.
+    return node
+
+# --- Detailed Template for "Template Mode" ---
+DETAILED_TEMPLATE = [
+    {
+        "tag": "div",
+        "content": [
+            {
+                "tag": "span",
+                "style": {"fontWeight": "bold", "fontSize": "1.2em"},
+                "content": "TERM_TEXT"
+            },
+            {
+                "tag": "span",
+                "style": {"color": "#555", "marginLeft": "8px"},
+                "content": "〔ALTERNATE_FORM〕"
+            }
+        ]
+    },
+    {
+        "tag": "div",
+        "style": {"fontStyle": "italic", "color": "#666", "marginBottom": "10px"},
+        "content": "PART_OF_SPEECH"
+    },
+    {
+        "tag": "div",
+        "style": {
+            "borderWidth": "1px 0 0 0",
+            "borderStyle": "solid",
+            "borderColor": "#e0e0e0",
+            "margin": "10px 0"
+        }
+    },
+    {
+        "tag": "div",
+        "style": {"marginTop": "10px"},
+        "content": [
+            {
+                "tag": "div",
+                "style": {"fontWeight": "bold"},
+                "content": "1. Primary Definition"
+            },
+            {
+                "tag": "div",
+                "style": {"marginLeft": "20px", "color": "#333"},
+                "content": "A more detailed explanation of this meaning."
+            },
+            {
+                "tag": "div",
+                "style": {"marginLeft": "20px", "marginTop": "5px", "fontSize": "0.9em", "color": "#444"},
+                "content": "Etymology: Origin or component breakdown."
+            },
+            {
+                "tag": "details",
+                "style": {"marginLeft": "20px", "marginTop": "5px"},
+                "content": [
+                    {
+                        "tag": "summary",
+                        "content": "Example Sentences"
+                    },
+                    {
+                        "tag": "ul",
+                        "content": [
+                            {"tag": "li", "content": "First example sentence."}
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "tag": "div",
+        "style": {"marginTop": "10px"},
+        "content": [
+            {
+                "tag": "div",
+                "style": {"fontWeight": "bold"},
+                "content": "2. Secondary Definition (if any)"
+            },
+            {
+                "tag": "div",
+                "style": {"marginLeft": "20px", "color": "#333"},
+                "content": "A more detailed explanation of this second meaning."
+            },
+            {
+                "tag": "details",
+                "style": {"marginLeft": "20px", "marginTop": "5px"},
+                "content": [
+                    {
+                        "tag": "summary",
+                        "content": "Example Sentences"
+                    },
+                    {
+                        "tag": "ul",
+                        "content": [
+                            {"tag": "li", "content": "Example sentence for this meaning."}
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]
 # --- Help Text for GUI Fields ---
 HELP_TEXT = """
 **Field Guide & Examples**
@@ -39,7 +183,8 @@ HELP_TEXT = """
 - **Score:** Some kind of ranking number. The script needs a number here, even 0.
   *Example: 0*
 
-- **Definitions (one per line):** The actual meaning of the term. You need at least one line here. For fancier formatting with lists or bold text, use the 'Edit as Structured Content' button.
+- **Definitions (one per line):** The actual meaning of the term. You need at least one 
+line here. For fancier formatting with lists or bold text, use the 'Edit as Structured Content' button.
   *Example: Greeting*
 
 - **Sequence Number:** An ID number for the entry. I honestly don't understand, 1 works well.
@@ -48,16 +193,16 @@ HELP_TEXT = """
 **-- Optional Fields (can be left blank) --**
 
 - **Reading:** How to pronounce the term, I guess?
-  *Example: hal-o*
+*Example: hal-o*
 
 - **Definition Tags:** Tags about the definition itself.
   *Example: Adjective*
 
 - **Rule Identifiers:** Used for rule system, I think?
-  *Example: adj*
+*Example: adj*
 
 - **Term Tags:** Extra tags for the term, maybe for filtering?
-  *Example: common*
+*Example: common*
 """
 
 # --- Helper functions for structured content ---
@@ -85,10 +230,10 @@ def add_html_tag(text_widget, tag_name, **attributes):
     text_widget.mark_set(tk.INSERT, f"{start}+{len(tag_start)}c")
 
 def show_structured_help():
-    """Displays a help pop-up with an example of valid structured JSON for definitions."""
+    """Displays a help pop-up with an example of valid structured JSON for 
+definitions."""
     help_message = """
 The Structured Definitions editor requires valid JSON format. This is useful for complex definitions, such as those with lists or nested structures.
-
 **Explanation:**
 - The outermost structure must be a list `[]`.
 - Each element of the list can be either a simple string or a JSON object.
@@ -111,10 +256,17 @@ def open_definitions_editor(parent):
     definitions_editor_text = tk.Text(content_frame, wrap=tk.WORD)
     definitions_editor_text.pack(fill=tk.BOTH, expand=True)
 
-    # The content for the editor is ALWAYS what's in current_definitions.
-    # If it's None (like for a new word), we just treat it as an empty list.
-    initial_content = current_definitions if current_definitions is not None else []
-    
+    # Determine the initial content for the editor
+    if current_definitions is not None:
+        # If definitions have already been edited (even to an empty list), use that data.
+        initial_content = current_definitions
+    elif template_mode_var.get():
+        # If this is the first time opening the editor and template mode is on, use the template.
+        initial_content = DETAILED_TEMPLATE
+    else:
+        # Otherwise, start with a blank slate.
+        initial_content = []
+        
     # Populate the editor with the JSON text of the content.
     json_text = orjson.dumps(initial_content, option=orjson.OPT_INDENT_2).decode('utf-8')
     definitions_editor_text.insert(tk.END, json_text)
@@ -131,30 +283,41 @@ def open_definitions_editor(parent):
     help_button_editor.pack(side=tk.LEFT, padx=(20, 0))
 
     def save_and_close():
+        """Saves structured content and closes the editor window."""
         global current_definitions
         try:
             content_str = definitions_editor_text.get("1.0", tk.END).strip()
             if content_str:
-                current_definitions = orjson.loads(content_str)
+                raw_definitions = orjson.loads(content_str)
+                cleaned_definitions = clean_placeholders(raw_definitions)
+                current_definitions = cleaned_definitions if cleaned_definitions is not None else []
             else:
                 current_definitions = []
             
+            definitions_text_box.config(state=tk.NORMAL)
             definitions_text_box.delete("1.0", tk.END)
-            definitions_text_box.insert(tk.END, f"[Structured Content]\n{parse_structured_content_to_text(current_definitions)}")
+            
+            display_text = parse_structured_content_to_text(current_definitions) if current_definitions else "[No definition provided]"
+            definitions_text_box.insert(tk.END, f"[Structured Content]\n{display_text}")
+            
+            if template_mode_var.get():
+                definitions_text_box.config(state=tk.DISABLED)
+
             editor_window.destroy()
         except orjson.JSONDecodeError as e:
             messagebox.showerror("Error", f"Invalid JSON format. Please check your syntax.\nDetails: {e}")
 
     save_button = tk.Button(editor_window, text="Save Definitions", command=save_and_close)
     save_button.pack(pady=5)
-    
+
+
 def create_entry_data():
     """Gathers data from the GUI and formats it to strictly follow the target JSON schema."""
     global current_definitions
 
     term = term_entry.get()
     reading = reading_entry.get()
-    def_tags = definition_tags_entry.get().strip() or "" # Default to empty string
+    def_tags = definition_tags_entry.get().strip() or ""
     rule_ids = rule_ids_entry.get().strip() or ""
     score_str = score_entry.get()
     sequence_num_str = sequence_entry.get()
@@ -162,16 +325,24 @@ def create_entry_data():
     
     definitions_text = definitions_text_box.get("1.0", tk.END).strip()
 
-    if not term or not score_str or not sequence_num_str:
-        messagebox.showerror("Error", "Term, Score, and Sequence Number are required.")
+
+    if template_mode_var.get() and current_definitions is None:
+        messagebox.showerror("Error", "Template mode is active. Please use the 'Edit as Structured Content' button to add your definition.")
+        return None
+ 
+
+    if not term:
+        messagebox.showerror("Error", "Term is required.")
         return None
     if not (definitions_text or current_definitions is not None):
         messagebox.showerror("Error", "Definitions are required.")
         return None
 
+  
+
     try:
-        score = float(score_str)
-        sequence_num = int(sequence_num_str)
+        score = float(score_str) if score_str else 0
+        sequence_num = int(sequence_num_str) if sequence_num_str else 1
     except ValueError:
         messagebox.showerror("Error", "Score must be a number and Sequence Number must be an integer.")
         return None
@@ -267,7 +438,7 @@ def add_word():
         return
 
     if not load_dictionary_data():
-         return
+        return
 
     term_to_add = new_entry[0]
     found = False
@@ -277,7 +448,7 @@ def add_word():
             messagebox.showinfo("Success", f"'{term_to_add}' updated successfully.")
             found = True
             break
-         
+        
     if not found:
         dictionary_data.append(new_entry)
         messagebox.showinfo("Success", f"'{term_to_add}' added successfully.")
@@ -314,7 +485,9 @@ def clear_fields():
     definition_tags_entry.delete(0, tk.END)
     rule_ids_entry.delete(0, tk.END)
     score_entry.delete(0, tk.END)
+    score_entry.insert(0, "0")
     sequence_entry.delete(0, tk.END)
+    sequence_entry.insert(0, "1")
     term_tags_entry.delete(0, tk.END)
     definitions_text_box.delete("1.0", tk.END)
     
@@ -322,6 +495,14 @@ def clear_fields():
     current_term_data = None
     current_definitions = None
     add_button.config(text="Add Word")
+
+    # NEW: Update definitions box based on template mode
+    if template_mode_var.get():
+        definitions_text_box.insert(tk.END, "[Template mode active. Click 'Edit as Structured Content'.]")
+        definitions_text_box.config(state=tk.DISABLED)
+    else:
+        definitions_text_box.config(state=tk.NORMAL)
+
 
 def show_help():
     """Displays the help popup with field info."""
@@ -384,6 +565,7 @@ def load_term_for_editing(event=None):
                 definitions_content = definitions_wrapper[0]['content']
             
             current_definitions = definitions_content
+            definitions_text_box.config(state=tk.NORMAL) # Re-enable to show content
             definitions_text_box.delete("1.0", tk.END)
             definitions_text_box.insert(tk.END, f"[Structured Content]\n{parse_structured_content_to_text(definitions_content)}")
             
@@ -465,6 +647,22 @@ def open_term_browser():
     tk.Button(button_frame, text="Delete Selected Term", command=delete_term).pack(side=tk.LEFT, padx=10)
     tk.Button(button_frame, text="Close", command=term_browser_window.destroy).pack(side=tk.LEFT, padx=10)
 
+def on_template_mode_toggle():
+    """Handles the state change of the template mode checkbox."""
+    if template_mode_var.get():
+        # If we are in a "new word" state (no current_term_data)
+        if not current_term_data:
+            definitions_text_box.config(state=tk.NORMAL)
+            definitions_text_box.delete("1.0", tk.END)
+            definitions_text_box.insert(tk.END, "[Template mode active. Click 'Edit as Structured Content'.]")
+            definitions_text_box.config(state=tk.DISABLED)
+    else:
+        # If we are in a "new word" state
+        if not current_term_data:
+            definitions_text_box.config(state=tk.NORMAL)
+            definitions_text_box.delete("1.0", tk.END)
+
+
 # --- GUI Setup ---
 if __name__ == "__main__":
     root = tk.Tk()
@@ -472,32 +670,62 @@ if __name__ == "__main__":
 
     input_frame = tk.Frame(root, padx=10, pady=10)
     input_frame.pack(fill=tk.BOTH, expand=True)
+    input_frame.columnconfigure(1, weight=1) # Allow entry column to expand
 
-    labels = [
-        "Term:", "Reading:", "Definition Tags (space-separated):",
-        "Rule Identifiers (space-separated):", "Score:",
-        "Definitions (one per line):", "Sequence Number:",
-        "Term Tags (space-separated):"
-    ]
-
+    # --- Reorganized Layout ---
+    labels = {
+        "Term": "Term:",
+        "Reading": "Reading:",
+        "Definition Tags": "Definition Tags (space-separated):",
+        "Rule Identifiers": "Rule Identifiers (space-separated):",
+        "Score": "Score:",
+        "Definitions": "Definitions (one per line):",
+        "Sequence Number": "Sequence Number:",
+        "Term Tags": "Term Tags (space-separated):"
+    }
+    
     entry_widgets = {}
-    for i, label_text in enumerate(labels):
-        label = tk.Label(input_frame, text=label_text, anchor='w')
-        label.grid(row=i, column=0, sticky='w', pady=2)
-        if label_text == "Definitions (one per line):":
-            definitions_text_box = tk.Text(input_frame, height=5, width=40)
-            definitions_text_box.grid(row=i, column=1, padx=5, pady=2, sticky='ew')
-            entry_widgets['definitions'] = definitions_text_box
-        else:
-            entry = tk.Entry(input_frame, width=40)
-            entry.grid(row=i, column=1, padx=5, pady=2, sticky='ew')
-            # A bit of a hack to make the dictionary keys cleaner
-            clean_label = label_text.split(':')[0].replace(' (space-separated)', '')
-            entry_widgets[clean_label] = entry
+    
+    # Row 0-4: Standard entries
+    row = 0
+    for key in ["Term", "Reading", "Definition Tags", "Rule Identifiers", "Score"]:
+        label = tk.Label(input_frame, text=labels[key], anchor='w')
+        label.grid(row=row, column=0, sticky='w', pady=2)
+        entry = tk.Entry(input_frame, width=40)
+        entry.grid(row=row, column=1, columnspan=2, padx=5, pady=2, sticky='ew')
+        entry_widgets[key] = entry
+        row += 1
 
+    # Row 5: Definitions
+    def_label = tk.Label(input_frame, text=labels["Definitions"], anchor='w')
+    def_label.grid(row=row, column=0, sticky='w', pady=2)
+    definitions_text_box = tk.Text(input_frame, height=5, width=40)
+    definitions_text_box.grid(row=row, column=1, padx=5, pady=2, sticky='ew')
     edit_definitions_button = tk.Button(input_frame, text="Edit as Structured Content", command=lambda: open_definitions_editor(root))
-    edit_definitions_button.grid(row=labels.index("Definitions (one per line):"), column=2, padx=5, pady=2)
+    edit_definitions_button.grid(row=row, column=2, padx=5, pady=2, sticky='w')
+    row += 1
 
+    # Row 6: Template Mode Checkbox
+    template_mode_var = tk.BooleanVar()
+    template_mode_check = ttk.Checkbutton(
+        input_frame,
+        text="Use Detailed Template for New Words",
+        variable=template_mode_var,
+        command=on_template_mode_toggle
+    )
+    template_mode_check.grid(row=row, column=1, columnspan=2, sticky='w', padx=5, pady=(5, 10))
+    row += 1
+
+    # Row 7-8: Remaining Entries
+    for key in ["Sequence Number", "Term Tags"]:
+        label = tk.Label(input_frame, text=labels[key], anchor='w')
+        label.grid(row=row, column=0, sticky='w', pady=2)
+        entry = tk.Entry(input_frame, width=40)
+        entry.grid(row=row, column=1, columnspan=2, padx=5, pady=2, sticky='ew')
+        entry_widgets[key] = entry
+        row += 1
+        
+    # Link widgets to legacy variable names
     term_entry = entry_widgets["Term"]
     reading_entry = entry_widgets["Reading"]
     definition_tags_entry = entry_widgets["Definition Tags"]
@@ -505,7 +733,12 @@ if __name__ == "__main__":
     score_entry = entry_widgets["Score"]
     sequence_entry = entry_widgets["Sequence Number"]
     term_tags_entry = entry_widgets["Term Tags"]
+    
+    # Set default values
+    score_entry.insert(0, "0")
+    sequence_entry.insert(0, "1")
 
+    # --- Buttons ---
     button_frame = tk.Frame(root, pady=10)
     button_frame.pack()
 
