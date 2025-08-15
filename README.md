@@ -1,5 +1,6 @@
 # Supplemental-Korean-Dictionary
-A supplemental korean dictionary for Yomitan. Mainly for reading webnovels.
+A supplemental korean dictionary for Yomitan. Mainly for reading webnovels. Currently WIP with (``56 Terms``) as of (``8/15/2025``)
+
 
 Made using custom .pyw program. 
 
