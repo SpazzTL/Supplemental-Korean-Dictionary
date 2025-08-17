@@ -3,10 +3,11 @@ A supplemental korean dictionary for Yomitan. Mainly for reading webnovels. Curr
 ( Release is actively updated )
 
 
+<img width="742" height="628" alt="image" src="https://github.com/user-attachments/assets/1d15178b-b9d2-4193-b051-fffd305aac1f" />
+
+
+
 Made using custom .pyw program (Located in scripts/Yomitan Word Adder-BETA.py).
-
-
-
 
 ### Yomitan Dictionary Creation Guide
 <img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/0cadd9e8-b01a-413e-b001-7c52dd4804ea" />
