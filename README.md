@@ -1,13 +1,17 @@
 # Supplemental-Korean-Dictionary
-A supplemental korean dictionary for Yomitan. Mainly for reading webnovels. Currently WIP with (``81 Main Terms``) as of (``8/16/2025``) | (``130~ total Terms Including Hanja``)
-( Release is actievly updated )
+A supplemental korean dictionary for Yomitan. Mainly for reading webnovels. Currently WIP with (``100 Main Terms``) as of (``8/16/2025``) | (``160~ total Terms Including Hanja``)
+( Release is actively updated )
 
 
-Made using custom .pyw program. 
+Made using custom .pyw program (Located in scripts/Yomitan Word Adder-BETA.py).
+
+
 
 
 ### Yomitan Dictionary Creation Guide
-<img width="1294" height="976" alt="image" src="https://github.com/user-attachments/assets/0cadd9e8-b01a-413e-b001-7c52dd4804ea" />
+<img width="500" height="500" alt="image" src="https://github.com/user-attachments/assets/0cadd9e8-b01a-413e-b001-7c52dd4804ea" />
+<img width="500" height="500" alt="image" src=Images/BetaIMG.png />
+
 
 This guide will walk you through the process of creating a custom dictionary for Yomitan using the above script.
 
@@ -42,11 +46,12 @@ Use the provided Python script to add and edit words. The script automatically s
 
 Once you have created your `index.json` and added your words using the script:
 
-1.  Use the "Zip Dictionary" button in the program. This will create a `dictionary_archive.zip` file in the same directory.
-2.  Alternatively, you can manually select the `index.json` and all `term_bank_*.json` files and create a zip archive.
-3.  Open the Yomitan extension in your browser.
-4.  Navigate to the settings page.
-5.  Go to the "Dictionaries" tab.
-6.  Click "Import" and select your new zip file.
+* 0. [OPTIONAL] Use generate_hanja_bank.py to generate new entries for each term containing a alternative_form field. Use clean_term_bank.py to remove blank example sentences and neaten formatting. (Both Create Backups in /backup folder) 
+* 1.  Use the "Zip Dictionary" button in the program. This will create a `dictionary_archive.zip` file in the same directory.
+* 2.  Alternatively, you can manually select the `index.json` and all `term_bank_*.json` files and create a zip archive.
+* 3.  Open the Yomitan extension in your browser.
+* 4.  Navigate to the settings page.
+* 5.  Go to the "Dictionaries" tab.
+* 6.  Click "Import" and select your new zip file.
 
 Your custom dictionary is now ready to be used in Yomitan.
