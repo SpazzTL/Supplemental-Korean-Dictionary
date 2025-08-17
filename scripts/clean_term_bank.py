@@ -3,29 +3,6 @@ import os
 import shutil
 from datetime import datetime
 
-def is_example_sentence_with_content(item):
-    """
-    Checks if a 'details' tag has the 'Example Sentences' summary
-    and contains a non-empty list of examples.
-    """
-    if item.get('tag') != 'details':
-        return False
-    
-    if not item.get('content') or item['content'][0].get('content') != 'Example Sentences':
-        return False
-        
-    if len(item.get('content', [])) < 2:
-        return False
-    
-    ul_tag = item['content'][1]
-    
-    if ul_tag.get('tag') == 'ul':
-        for li_item in ul_tag.get('content', []):
-            if li_item.get('content'):
-                return True
-                
-    return False
-
 def process_term_bank(file_path):
     """
     Processes a JSON file to format definitions and handle example sentences.
@@ -41,83 +18,44 @@ def process_term_bank(file_path):
         print(f"Error: The file '{file_path}' is not a valid JSON file.")
         return
         
-    def update_styles_and_newlines(obj):
+    def update_content(obj):
         """
-        Recursively finds and updates style attributes and replaces newlines.
+        Recursively finds and updates content based on user requests.
         """
         if isinstance(obj, dict):
+            # Update styles
             if 'style' in obj and isinstance(obj['style'], dict):
                 style = obj['style']
                 if style.get('fontSize') == '0.9em':
                     style['fontSize'] = '1em'
                 if style.get('color') == '#444':
                     style['color'] = '#a8a8a8'
-            for key, value in obj.items():
-                if isinstance(value, str):
-                    obj[key] = value.replace('\\n', '\n')
-                else:
-                    update_styles_and_newlines(value)
-        elif isinstance(obj, list):
-            for i in range(len(obj)):
-                if isinstance(obj[i], str):
-                    obj[i] = obj[i].replace('\\n', '\n')
-                else:
-                    update_styles_and_newlines(obj[i])
-    
-    # Apply the new style and newline updates
-    update_styles_and_newlines(data)
-    
-    # Existing cleaning logic
-    for top_level_list in data:
-        if isinstance(top_level_list, list) and len(top_level_list) > 5 and isinstance(top_level_list[5], list):
-            for structured_content_item in top_level_list[5]:
-                if structured_content_item.get('type') == 'structured-content' and 'content' in structured_content_item:
-                    processed_content = []
-                    for item in structured_content_item['content']:
-                        if is_example_sentence_with_content(item):
-                            pass
-                        elif item.get('tag') == 'div' and item.get('style') and item['style'].get('fontStyle') == 'italic' and item['content'] == 'Noun':
-                            pass
-                        else:
-                            processed_content.append(item)
-                    structured_content_item['content'] = processed_content
-    
-    for term_list in data:
-        if isinstance(term_list, list) and len(term_list) > 5 and isinstance(term_list[5], list):
-            for structured_content_item in term_list[5]:
-                if structured_content_item.get('type') == 'structured-content' and isinstance(structured_content_item.get('content'), list):
-                    for top_level_item in structured_content_item['content']:
-                        if top_level_item.get('tag') == 'div' and isinstance(top_level_item.get('content'), list):
-                            processed_inner_content = []
-                            for item in top_level_item['content']:
-                                if item.get('tag') == 'div' and item.get('style') and item['style'].get('fontStyle') == 'italic' and item.get('content') == 'Noun':
-                                    continue
-                                if item.get('tag') == 'div' and item.get('style') and item['style'].get('fontWeight') == 'bold' and item.get('content') == 'Example Sentences':
-                                    continue
-                                processed_inner_content.append(item)
-                            
-                            top_level_item['content'] = processed_inner_content
-    
-    for top_level_list in data:
-        if isinstance(top_level_list, list) and len(top_level_list) > 5 and isinstance(top_level_list[5], list):
-            for structured_content_item in top_level_list[5]:
-                if structured_content_item.get('type') == 'structured-content' and isinstance(structured_content_item.get('content'), list):
-                    processed_content = []
-                    for item in structured_content_item['content']:
-                        if item.get('tag') == 'details' and item.get('content') and item['content'][0].get('content') == 'Example Sentences':
-                            continue
-                        processed_content.append(item)
-                    structured_content_item['content'] = processed_content
 
-    for top_level_list in data:
-        if isinstance(top_level_list, list) and len(top_level_list) > 5 and isinstance(top_level_list[5], list):
-            for structured_content_item in top_level_list[5]:
-                if structured_content_item.get('type') == 'structured-content' and isinstance(structured_content_item.get('content'), list):
-                    top_level_item = structured_content_item['content'][0] if structured_content_item['content'] else None
-                    if top_level_item and top_level_item.get('tag') == 'div' and isinstance(top_level_item.get('content'), list):
-                        for span_item in top_level_item['content']:
-                            if span_item.get('tag') == 'span' and isinstance(span_item.get('content'), str):
-                                span_item['content'] = span_item['content'].strip()
+            # Replace newlines
+            if 'content' in obj and isinstance(obj['content'], str):
+                obj['content'] = obj['content'].replace('\\n', '\n')
+            
+            # Recursively process content
+            for key, value in obj.items():
+                update_content(value)
+        
+        elif isinstance(obj, list):
+            new_list = []
+            for item in obj:
+                # Remove unwanted tags
+                if isinstance(item, dict):
+                    if item.get('tag') == 'div' and item.get('style') and item['style'].get('fontStyle') == 'italic' and item.get('content') == 'Noun':
+                        continue
+                    if item.get('tag') == 'details' and item.get('content') and item['content'][0].get('content') == 'Example Sentences':
+                        continue
+                
+                # Recursively process remaining items
+                update_content(item)
+                new_list.append(item)
+            obj[:] = new_list
+
+    # Apply all updates
+    update_content(data)
     
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -145,3 +83,6 @@ if __name__ == "__main__":
         process_term_bank(INPUT_FILE)
     else:
         print(f"Error: The file '{INPUT_FILE}' does not exist.")
+
+    # Added to prevent the console from closing immediately
+    input("Press Enter to exit...")
