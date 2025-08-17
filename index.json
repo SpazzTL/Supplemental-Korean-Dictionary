@@ -1,0 +1,13 @@
+{
+"title":"SpazzTL's Supplemental Dictionary",
+"revision":"0.0.2",
+"format":3,
+"author":"SpazzTL",
+"description":"A simple dictionary made to help with reading webnovels.",
+"attribution":"This dictionary is fully hand made.",
+"sourceLanguage": "ko",
+"targetLanguage": "en",
+"isUpdatable": true,
+"indexUrl": "https://github.com/SpazzTL/Supplemental-Korean-Dictionary/blob/main/index.json",
+"downloadUrl": "https://github.com/SpazzTL/Supplemental-Korean-Dictionary/blob/main/index.json/output.zip"
+}
