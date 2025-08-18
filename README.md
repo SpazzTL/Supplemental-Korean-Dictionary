@@ -1,5 +1,5 @@
 # Supplemental-Korean-Dictionary
-A supplemental korean dictionary for Yomitan. Mainly for reading webnovels. Currently WIP with (``180~ total Terms Including Hanja``)as of (``8/16/2025``)
+A supplemental korean dictionary for Yomitan. Mainly for reading webnovels. Currently WIP with (``180~ total Terms Including Hanja``) as of (``8/16/2025``)
 ( Release is actively updated )
 
 
